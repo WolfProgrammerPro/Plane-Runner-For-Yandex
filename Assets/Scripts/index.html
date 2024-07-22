@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | Kolobok wants to live</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+
+                <!-- Yandex Games SDK -->
+<script src="https://yandex.ru/games/sdk/v2"></script>
+
+  </head>
+  <body>
+    <div id="unity-container" style="position: absolute; width: 100%; height: 100%; left: 0%; top: 0%;">
+      <canvas id="unity-canvas" style="position: absolute; width: 100%; height: 100%;"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+
+    </div>
+    <script>
+
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+     // var fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/Kolobok.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/Kolobok.data.unityweb",
+        frameworkUrl: buildUrl + "/Kolobok.framework.js.unityweb",
+        codeUrl: buildUrl + "/Kolobok.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "Kolobok wants to live",
+        productVersion: "0.1",
+        showBanner: unityShowBanner,
+      };
+
+      // By default Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        container.className = "unity-mobile";
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+       // canvas.style.width = window.innerWidth + 'px';
+       // canvas.style.height = window.innerHeight + 'px';
+
+        //unityShowBanner('WebGL builds are not supported on mobile devices.');
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+      }
+
+      loadingBar.style.display = "block";
+      var MyGameInstance = null;
+      
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          MyGameInstance = unityInstance;  
+          loadingBar.style.display = "none";
+         // fullscreenButton.onclick = () => {
+         //   unityInstance.SetFullscreen(1);
+         // };
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+      document.body.appendChild(script);
+    </script>
+        <script>
+      //яндекс
+      YaGames
+        .init()
+        .then(ysdk => {
+            console.log('Yandex SDK initialized');
+            window.ysdk = ysdk;
+           InitPlayer();
+           InitLeaderboards();
+           GetLeaderBoard();      
+           // InitPayments();
+        });
+
+      var player = null;
+      var payments = null; 
+      var lb;
+           
+      function InitPlayer() {
+          return ysdk.getPlayer({ scopes: false }).then(_player => {
+                  player = _player;
+                  console.log(player);
+                  return player;
+              });
+      }
+      function InitLeaderboards() {
+        ysdk.getLeaderboards()
+            .then(_lb => lb = _lb);
+      }
+      function Auth() {
+        InitPlayer().then(_player => {
+              if (_player.getMode() === 'lite') {
+                  // Игрок не авторизован.
+                  ysdk.auth.openAuthDialog().then(() => {
+                          // Игрок успешно авторизован
+                          initPlayer().catch(err => {
+                              // Ошибка при инициализации объекта Player.
+                          });
+                      }).catch(() => {
+                          // Игрок не авторизован.
+                      });
+              }
+          }).catch(err => {
+              // Ошибка при инициализации объекта Player.
+          });
+      }
+      function GetDevice() {
+        var device = ysdk.deviceInfo;
+        //MyGameInstance.SendMessage('DataBox', 'SetDevice', device.type); 
+        SendEmail('SetDevice', device.type);
+      }
+      function GetLanguage() {
+        var lang = ysdk.environment.i18n.lang;
+       // MyGameInstance.SendMessage('DataBox', 'SetBrowserLanguage', lang); 
+        SendEmail('SetBrowserLanguage', lang);
+      }
+
+      function GetData() {
+        if(player != null){
+          player.getData().then(data => {
+            const myJSON = JSON.stringify(data);
+            //MyGameInstance.SendMessage('DataBox', 'LoadFromServer', myJSON);
+            SendEmail('LoadFromServer', myJSON);
+          });          
+        }
+
+      }
+      function SetData(data) {
+          var myobj = JSON.parse(data);
+          console.log(data);
+        player.setData(myobj);
+      }
+      
+      function ShowFullscrenAdv() {
+        ysdk.adv.showFullscreenAdv({
+          callbacks: {
+              onClose: function(wasShown) {
+                console.log("reward");
+              },
+              onError: function(error) {
+                // some action on error
+              }
+          }
+        })
+      }
+      function ShowRewardAdv() {
+          ysdk.adv.showRewardedVideo({
+              callbacks: {
+                  onOpen: () => {
+                    console.log('Video ad open.');
+                  },
+                  onRewarded: () => {
+                    MyGameInstance.SendMessage("DataBox", "RewardGetting");
+                  },
+                  onClose: () => {
+                    console.log('Video ad closed.');
+                  }, 
+                  onError: (e) => {
+                    console.log('Error while open video ad:', e);
+                  }
+              }
+          })
+      }
+      
+      function InitPayments() {
+        ysdk.getPayments({ signed: true }).then(_payments => {
+              // Покупки доступны.
+              payments = _payments;
+          }).catch(err => {
+              // Покупки недоступны. Включите монетизацию в консоли разработчика.
+              // Убедитесь, что на вкладке Покупки консоли разработчика присутствует таблица
+              // хотя бы с одним внутриигровым товаром и надписью «Покупки разрешены».
+          })  
+      }
+//   levels    Kills
+      function GetLeaderBoard() {
+        let boardName = "levels";
+        let isAuthMan;
+        ysdk.isAvailableMethod('leaderboards.getLeaderboardPlayerEntry').then(_isAuthMan => {
+            isAuthMan = _isAuthMan;
+            if(isAuthMan){
+              try {
+                ysdk.getLeaderboards()
+                    .then(leaderboard => {
+                        leaderboard.getLeaderboardEntries('' + boardName, {
+                            quantityTop: 5,
+                            includeUser: true,
+                            quantityAround: 5
+                        })
+                            .then(res => {
+                                EntriesLB(res, boardName, 10, "small");
+                            });
+                    });
+            } catch (e) {
+                console.error('CRASH Get Leaderboard Scores: ', e.message);
+            }
+        } else {
+            try {
+                ysdk.getLeaderboards()
+                    .then(leaderboard => {
+                        leaderboard.getLeaderboardEntries('' + boardName, {quantityTop: 5})
+                            .then(res => {
+                                EntriesLB(res, boardName, 10, "small");
+                            });
+                    });
+            } catch (e) {
+                console.error('CRASH Get Leaderboard Scores: ', e.message);
+            }
+            }
+        })
+
+       // ysdk.getLeaderboards()
+       // .then(lb => {
+       //   lb.getLeaderboardEntries("Kills", {quantityTop: 10, includeUser: true, quantityAround: 3}).then(data => {
+        //    console.log("ЛИДЕРБОРД");
+        //    console.log(data);
+        //    console.log(data["entries"]);
+        //    var leaderboard = "";
+        //    data["entries"].forEach(element => {
+        //      var url = "";
+        //      element["player"].getAvatarSrcSet("small").then(_url =>{
+          //      url = _url;  
+         //       leaderboard += ' rank:' + element["rank"] + " name:" + element["player"]["publicName"] + " score:" + element["score"] + " url:" + url;              
+         //     });
+             // var url = element["player"]["getAvatarSrc"];
+             // leaderboard += ' rank:' + element["rank"] + " name:" + element["player"]["publicName"] + " score:" + element["score"] + " url:" + url;
+        //    });
+       //     console.log(leaderboard);
+        //    const myJSON = JSON.stringify(data["entries"]);
+            //MyGameInstance.SendMessage('DataBox', 'LoadLeaderboard', myJSON);
+    //      })
+    //    });
+      }
+      function SetLeaderBoard(score, name) {
+        ysdk.getLeaderboards()
+        .then(lb => {
+          //var score = JSON.parse(data);
+                  console.log("save" + score + " : " + name);
+          lb.setLeaderboardScore("Kills", score, name);
+        });
+      }
+
+      function EntriesLB(res, nameLB, maxPlayers, photoSize) {
+
+        console.log("ЛИДЕРБОРД");
+        console.log(res);
+        //    console.log(data["entries"]);
+        let LeaderboardEntriesText = '';
+
+        let playersCount;
+        if (res.entries.length < maxPlayers) {
+            playersCount = res.entries.length;
+        } else {
+            playersCount = maxPlayers;
+        }
+
+        let rank = [maxPlayers];
+        let photo = [maxPlayers];
+        let playersName = [maxPlayers];
+        let scorePlayers = [maxPlayers];
+
+        for (i = 0; i < playersCount; i++) {
+            rank[i] = res.entries[i].rank;
+            scorePlayers[i] = res.entries[i].score;
+
+           // if (photoSize === 'nonePhoto' || res.entries[i].player.scopePermissions.avatar !== "allow") {
+           //     photo[i] = 'nonePhoto';
+          //  } else {
+          //      photo[i] = res.entries[i].player.getAvatarSrc(photoSize);
+           // }
+
+            if (res.entries[i].extraData == "") {
+                playersName[i] = "anonymous";
+            } else {
+                playersName[i] = res.entries[i].extraData;
+            }
+
+         //   LeaderboardEntriesText += rank[i] + '. ' + playersName[i] + ": " + scorePlayers[i] + '\n';
+        }
+
+        if (playersCount === 0) {
+            LeaderboardEntriesText = 'No data';
+        }
+
+        let jsonLB = {
+          //  "nameLB": nameLB,
+          //  "entries": LeaderboardEntriesText,
+            "rank": rank,
+           // "photo": photo,
+            "playersName": playersName,
+            "scorePlayers": scorePlayers
+        };
+        console.log(jsonLB);
+        //MyGameInstance.SendMessage('DataBox', 'LoadLeaderboard', JSON.stringify(jsonLB));
+        SendEmail('LoadLeaderboard',JSON.stringify(jsonLB))
+    }
+
+    function SendEmail(functionName, data) {
+      if (MyGameInstance)
+      {
+        MyGameInstance.SendMessage('DataBox', functionName, data);
+      }
+      //else
+     //{
+     //   setTimeout(SendEmail(functionName, data), 1000);
+     // }
+    }
+    </script>  
+
+  </body>
+</html>
